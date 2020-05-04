@@ -78,30 +78,6 @@ extension Parser: ParserOandaData {
                     }
                 }
             })
-//            let dataChunks = self.chunks(from: decom)
-//            print(dataChunks.count)
-//            dataChunks.forEach { dataChunk in
-//                do {
-//                    _ = try decoder.decode(Pricing.Price.self, from:dataChunk)
-//                } catch {
-//                    let s = String(decoding: dataChunk, as: UTF8.self)
-//                    if !s.contains("HEARTBEAT") {
-//                        isOK = false
-//                        j += 1
-//                        print("====")
-//                        print(s)
-//                        print("----")
-//                        print(String(decoding: decom, as: UTF8.self))
-//                    }
-//                }
-//            }
-//            if isOK && !dryRun {
-////                let nsdata = decom as NSData
-////                let buffer = nsdata.bytes.bindMemory(to: UInt8.self, capacity: decom.count)
-////                streamOut.write(buffer, maxLength: decom.count)
-//            } else if !isOK {
-//                print("not writing \(x)")
-//            }
             x += 1
         } while(readBytes > 0)
         print(x,j)
