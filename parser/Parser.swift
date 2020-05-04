@@ -50,9 +50,9 @@ extension Parser: ParserOandaData {
             readBytes = readHeader(stream: streamIn)
             let data = readData(stream: streamIn, lenght: readBytes)
             var isOK = true
-            try decomData(data: data, closure: { datax in
-                if let datax = datax {
-                    let dataChunks = self.chunks(from: datax)
+            try decomData(data: data, closure: { decom in
+                if let decom = decom {
+                    let dataChunks = self.chunks(from: decom)
                     dataChunks.forEach { dataChunk in
                         do {
                             _ = try decoder.decode(Pricing.Price.self, from:dataChunk)
@@ -63,12 +63,18 @@ extension Parser: ParserOandaData {
                                 print("==\(x)==")
                                 print(s)
                                 print("--\(x)--")
-                                print(String(decoding: datax, as: UTF8.self))
+                                print(String(decoding: decom, as: UTF8.self))
                                 isOK = false
+                                return // break
                             }
                         }
-                        if !isOK {
-                        }
+                    }
+                    if isOK && !dryRun {
+                        let nsdata = decom as NSData
+                        let buffer = nsdata.bytes.bindMemory(to: UInt8.self, capacity: decom.count)
+                        streamOut.write(buffer, maxLength: decom.count)
+                    } else if !isOK {
+                        print("not writing \(x)")
                     }
                 }
             })
@@ -89,13 +95,13 @@ extension Parser: ParserOandaData {
 //                    }
 //                }
 //            }
-            if isOK && !dryRun {
-//                let nsdata = decom as NSData
-//                let buffer = nsdata.bytes.bindMemory(to: UInt8.self, capacity: decom.count)
-//                streamOut.write(buffer, maxLength: decom.count)
-            } else if !isOK {
-                print("not writing \(x)")
-            }
+//            if isOK && !dryRun {
+////                let nsdata = decom as NSData
+////                let buffer = nsdata.bytes.bindMemory(to: UInt8.self, capacity: decom.count)
+////                streamOut.write(buffer, maxLength: decom.count)
+//            } else if !isOK {
+//                print("not writing \(x)")
+//            }
             x += 1
         } while(readBytes > 0)
         print(x,j)
