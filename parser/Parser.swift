@@ -38,6 +38,8 @@ extension Parser: ParserOandaData {
     func parse(dryRun: Bool, fileIn: String, fileOut: String) throws {
         guard let streamIn = InputStream(fileAtPath: fileIn) else { throw ParserError.invalidInputStreamFileName}
         guard let streamOut = OutputStream(toFileAtPath: fileOut, append: true) else { throw ParserError.invalidInputStreamFileName}
+        let queue = DispatchQueue(label: "json.serial", qos: .userInitiated, autoreleaseFrequency: .workItem)
+        let queueOut = DispatchQueue(label: "streamOut.serial", qos: .userInitiated, autoreleaseFrequency: .workItem)
         streamIn.open()
         if !dryRun {
             streamOut.open()
@@ -45,45 +47,26 @@ extension Parser: ParserOandaData {
         var readBytes = 0
         let decoder = JSONDecoder()
         var x = 0
-        var j = 0
         repeat {
             readBytes = readHeader(stream: streamIn)
             let data = readData(stream: streamIn, lenght: readBytes)
-            var isOK = true
             try decomData(data: data, closure: { decom in
                 if let decom = decom {
                     let dataChunks = self.chunks(from: decom)
-                    dataChunks.forEach { dataChunk in
-                        do {
-                            _ = try decoder.decode(Pricing.Price.self, from:dataChunk)
-                        } catch {
-                            let s = String(decoding: dataChunk, as: UTF8.self)
-                            if !s.contains("HEARTBEAT") {
-                                j += 1
-                                print("==\(x)==")
-                                print(s)
-                                print("--\(x)--")
-                                print(String(decoding: decom, as: UTF8.self))
-                                isOK = false
-                                return // break
-                            }
-                        }
-                    }
-                    if isOK && !dryRun {
-                        let nsdata = decom as NSData
-                        let buffer = nsdata.bytes.bindMemory(to: UInt8.self, capacity: decom.count)
-                        streamOut.write(buffer, maxLength: decom.count)
-                    } else if !isOK {
-                        print("not writing \(x)")
-                    }
+                    self.checkChunks(decom: decom, dataChunks: dataChunks, localX: x, decoder: decoder, queue: queue, streamOut: streamOut, queueOut: queueOut)
                 }
             })
             x += 1
         } while(readBytes > 0)
-        print(x,j)
+        print(x)
+        queue.sync {
+            print("finished")
+        }
         streamIn.close()
         if !dryRun {
-            streamOut.close()
+            queueOut.sync {
+                streamOut.close()
+            }
         }
     }
 }
@@ -133,6 +116,38 @@ private extension Parser {
         if data.count > 0 {
             let outputFilter = try OutputFilter(.decompress, using: .lzfse, writingTo: closure)
             try outputFilter.write(data)
+        }
+    }
+    
+    func checkChunks(decom: Data, dataChunks:[Data], localX: Int, decoder: JSONDecoder, queue: DispatchQueue, streamOut: OutputStream, queueOut: DispatchQueue) {
+//        let localDecom = decom as NSData
+        queue.async {
+            var isOK = true
+            dataChunks.forEach { dataChunk in
+                do {
+                    _ = try decoder.decode(Pricing.Price.self, from:dataChunk)
+                    if !self.dryRun {
+                        queueOut.async {
+                            let localDecom = dataChunk as NSData
+                            let buffer = localDecom.bytes.bindMemory(to: UInt8.self, capacity: localDecom.count)
+                            streamOut.write(buffer, maxLength: localDecom.count)
+                        }
+                    }
+                } catch {
+                    let s = String(decoding: dataChunk, as: UTF8.self)
+                    if !s.contains("HEARTBEAT") {
+                        print("==\(localX)==")
+                        print(s)
+                        print("--\(localX)--")
+//                        print(String(decoding: localDecom, as: UTF8.self))
+                        isOK = false
+                        return // break
+                    }
+                }
+            }
+            if !isOK {
+                print("not writing \(localX)")
+            }
         }
     }
 

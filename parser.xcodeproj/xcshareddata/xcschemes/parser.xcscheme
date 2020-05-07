@@ -58,11 +58,11 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Volumes/128GB/2020-W18-OANDA-FULL.TXT"
+            argument = "/Volumes/128GB/2020-W18-OANDA.TXT"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Volumes/128GB/2020-W18-OANDA-FULL-DECOMPRESSED.TXT"
+            argument = "/Volumes/128GB/2020-W18-OANDA-DECOMPRESSED3.TXT"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
