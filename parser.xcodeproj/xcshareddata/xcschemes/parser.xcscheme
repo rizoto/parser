@@ -34,8 +34,8 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      enableAddressSanitizer = "YES"
       enableASanStackUseAfterReturn = "YES"
+      disableMainThreadChecker = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -58,11 +58,23 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "--instruments=AUD_USD --instruments=AUD_NZD"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Volumes/128GB/2020-W18-OANDA.TXT"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--validate"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Volumes/128GB/2020-W18-OANDA-DECOMPRESSED3.TXT"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/lkolacny/oanda.txt"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

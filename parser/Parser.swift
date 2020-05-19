@@ -11,22 +11,35 @@ import Foundation
 import Compression
 
 protocol ParserOandaData {
-    func parse(dryRun: Bool, fileIn: String, fileOut: String) throws
+    func parse(dryRun: Bool, fileIn: String, fileOut: String, filter: [String]) throws
+    func validate(fileIn: String) throws
 }
 
 struct Parser: ParsableCommand {
 
     @Flag(help: "Dry run without any real action.")
     var dryRun: Bool
+    
+    @Flag(help: "Validate the input file.")
+    var validate: Bool
 
+    @Option(help: "Filter what instruments to extract.")
+    var instruments: [String]
+    
     @Argument(help: "The input file including full path to parse.")
     var fileIn: String
     
-    @Argument(help: "The output file including full path to parse.")
-    var fileOut: String
+    @Option(help: "The output file including full path to parse.")
+    var fileOut: String?
 
     func run() throws {
-        try parse(dryRun:dryRun, fileIn: fileIn, fileOut: fileOut)
+        if validate {
+            try validate(fileIn: fileIn)
+        } else if let fileOut = fileOut {
+            try parse(dryRun:dryRun, fileIn: fileIn, fileOut: fileOut, filter: instruments)
+        } else {
+            fatalError("Fatal error.")
+        }
     }
 }
 
@@ -35,7 +48,25 @@ extension Parser: ParserOandaData {
         case invalidInputStreamFileName
         case dataDecompressionFailed
     }
-    func parse(dryRun: Bool, fileIn: String, fileOut: String) throws {
+    func validate(fileIn: String) throws {
+        let data = try Data(contentsOf: URL(fileURLWithPath: fileIn))
+        let dataChunks = self.chunks(from: data, filter: [])
+        let json = JSONDecoder()
+        dataChunks.forEach { dataChunk in
+            do {
+                let price = try json.decode(Pricing.Price.self, from: dataChunk)
+            } catch let e {
+                let str = String(decoding: dataChunk, as: UTF8.self)
+                if !str.contains("HEARTBEAT") {
+                    print("-------------------")
+                    print(e)
+                    print()
+                }
+            }
+        }
+        
+    }
+    func parse(dryRun: Bool, fileIn: String, fileOut: String, filter:[String]) throws {
         guard let streamIn = InputStream(fileAtPath: fileIn) else { throw ParserError.invalidInputStreamFileName}
         guard let streamOut = OutputStream(toFileAtPath: fileOut, append: true) else { throw ParserError.invalidInputStreamFileName}
         let queue = DispatchQueue(label: "json.serial", qos: .userInitiated, autoreleaseFrequency: .workItem)
@@ -52,7 +83,7 @@ extension Parser: ParserOandaData {
             let data = readData(stream: streamIn, lenght: readBytes)
             try decomData(data: data, closure: { decom in
                 if let decom = decom {
-                    let dataChunks = self.chunks(from: decom)
+                    let dataChunks = self.chunks(from: decom, filter: filter)
                     self.checkChunks(decom: decom, dataChunks: dataChunks, localX: x, decoder: decoder, queue: queue, streamOut: streamOut, queueOut: queueOut)
                 }
             })
@@ -150,8 +181,18 @@ private extension Parser {
             }
         }
     }
+    
+    func containInstrument(bytes:[UInt8], filter: [String]) -> Bool {
+        let dataString = String(decoding: bytes, as: UTF8.self)
+        for instrument in instruments {
+            if dataString.contains(instrument) {
+                return true
+            }
+        }
+        return false
+    }
 
-    func chunks(from data: Data) -> [Data] {
+    func chunks(from data: Data, filter:[String]) -> [Data] {
         var chunkArray = [Data]()
         var iterator = data.makeIterator()
         var bracketTracker = 0
@@ -166,7 +207,9 @@ private extension Parser {
             } else if (num == 125) {  // '}'
                 bracketTracker-=1
                 if (bracketTracker == 0) {
-                    chunkArray.append(Data(bytes))
+                    if filter.count == 0 || containInstrument(bytes: bytes, filter: filter) {
+                        chunkArray.append(Data(bytes))
+                    }
                     bytes = []
                 }
             }
